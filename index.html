@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>HTML Boilerplate</title>
+
+    <script
+      type="module"
+      src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs"
+      ></script>
+    <script
+      type="module"
+      src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.mjs"
+      ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf_viewer.min.css"
+      integrity="sha512-dbJOtZ3VfH52HMyZ0hz6HcLVK0bESRU396ht5fz4EC6icMeT0MKSYxp6LoydBDaMUHiAGjnI9vA3hZRcCc2Fxw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+      />
+    <script type="module" src="index.js"></script>
+    <style>
+#pdf-canvas {
+  border: 1px solid black;
+}
+    </style>
+  </head>
+  <body>
+    <input type="file" id="file" hidden />
+    <button id="open">Open</button>
+    <hr />
+    <canvas id="pdf-canvas"></canvas>
+
+    <script type="module">
+      const $ = document.getElementById.bind(document);
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://mozilla.github.io/pdf.js/build/pdf.worker.mjs';
+
+      $('open').addEventListener('click', () => {
+        $('file').click();
+      });
+      $('file').addEventListener('change', () => {
+        const file = $('file');
+        const fileUrl = URL.createObjectURL(file.files[0]);
+        console.log(fileUrl);
+        render(fileUrl);
+      });
+
+            const samplePdf =
+              'https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf';
+            render(samplePdf);
+
+            const defaltOpts = {
+              left: 0;
+              top: 0;
+              page: 1;
+            };
+            function render(fileUrl, opts = {}) {
+              const options = { ...defaltOpts, ...opts };
+              // Get the canvas element
+              var canvas = $('pdf-canvas');
+              var context = canvas.getContext('2d');
+
+              // Create a PDF document from the URL
+              pdfjsLib
+                .getDocument(fileUrl)
+                .promise.then(function (pdf) {
+                  // Get the first page of the PDF
+                  pdf.getPage(1).then(function (page) {
+                    // Set the desired scale and viewport
+                    var scale = 1.5;
+                    var viewport = page.getViewport({ scale: scale });
+
+                    // Set the canvas dimensions based on the viewport
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    // Render the PDF page on the canvas
+                    var renderContext = {
+                      canvasContext: context,
+                      viewport: viewport,
+                    };
+                    page.render(renderContext);
+                  });
+                })
+                .catch(function (error) {
+                  console.error('Error loading PDF:', error);
+                });
+            }
+    </script>
+  </body>
+</html>
