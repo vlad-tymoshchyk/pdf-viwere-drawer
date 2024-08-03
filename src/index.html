@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>HTML Boilerplate</title>
+
+    <script
+      type="module"
+      src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs"
+    ></script>
+    <script
+      type="module"
+      src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.mjs"
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf_viewer.min.css"
+      integrity="sha512-dbJOtZ3VfH52HMyZ0hz6HcLVK0bESRU396ht5fz4EC6icMeT0MKSYxp6LoydBDaMUHiAGjnI9vA3hZRcCc2Fxw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <style>
+      body {
+        background-color: aqua;
+      }
+      button {
+        background-color: #fff;
+        border: 1px solid #d5d9d9;
+        border-radius: 8px;
+        box-shadow: rgba(213, 217, 217, 0.5) 0 2px 5px 0;
+        box-sizing: border-box;
+        color: #0f1111;
+        cursor: pointer;
+        display: inline-block;
+        font-family: 'Amazon Ember', sans-serif;
+        font-size: 13px;
+        line-height: 29px;
+        padding: 0 10px 0 11px;
+        position: relative;
+        text-align: center;
+        text-decoration: none;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+        vertical-align: middle;
+      }
+
+      button:hover {
+        background-color: #f7fafa;
+      }
+
+      button:focus {
+        border-color: #008296;
+        box-shadow: rgba(213, 217, 217, 0.5) 0 2px 5px 0;
+        outline: 0;
+      }
+      #pdf-canvas {
+        background-color: white;
+        border: 1px solid black;
+        position: relative;
+      }
+      .space {
+        margin-left: 5px;
+        margin-right: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="page-container">
+      <div id="panel">
+        <input type="file" id="file" hidden />
+        <button id="open">Open file</button>
+
+        <span class="space"></span>
+        <button id="minus-left">-left</button>
+        <span id="left-value"></span>
+        <button id="plus-left">+left</button>
+
+        <span class="space"></span>
+        <button id="minus-top">-top</button>
+        <span id="top-value"></span>
+        <button id="plus-top">+top</button>
+
+        <span class="space"></span>
+        <button id="minus-width">-width</button>
+        <span id="width-value"></span>
+        <button id="plus-width">+width</button>
+
+        <span class="space"></span>
+        <button id="prev-page">previous page</button>
+        <input type="number" id="current-page" style="width: 40px" />
+        <span id="total-pages"></span>
+        <button id="next-page">next page</button>
+      </div>
+      <canvas id="pdf-canvas"></canvas>
+    </div>
+
+    <!-- <script type="module" src="./index.js"> -->
+    <script type="module">
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://mozilla.github.io/pdf.js/build/pdf.worker.mjs';
+
+      const $ = document.getElementById.bind(document);
+
+      const samplePdf =
+        'https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf';
+      let fileUrl = '';
+      let totalPages = 1;
+      rerenderWithPage(1);
+
+      $('open').addEventListener('click', () => {
+        $('file').click();
+      });
+
+      $('file').addEventListener('change', () => {
+        const file = $('file');
+        fileUrl = URL.createObjectURL(file.files[0]);
+        pdfjsLib.getDocument(fileUrl).promise.then((pdf) => {
+          totalPages = pdf.numPages;
+          $('total-pages').innerText = 'of ' + totalPages;
+        });
+        rerenderWithPage(1);
+      });
+
+      function render(fileUrl, opts = { page: 1 }) {
+        var canvas = $('pdf-canvas');
+        var context = canvas.getContext('2d');
+
+        // Create a PDF document from the URL
+        pdfjsLib
+          .getDocument(fileUrl)
+          .promise.then(function (pdf) {
+            window.pdf = pdf;
+            // Get the first page of the PDF
+            pdf.getPage(opts.page).then(function (page) {
+              // Set the desired scale and viewport
+              var scale = 1.5;
+              var viewport = page.getViewport({ scale: scale });
+
+              // Set the canvas dimensions based on the viewport
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+
+              // Render the PDF page on the canvas
+              var renderContext = {
+                canvasContext: context,
+                viewport: viewport,
+              };
+              page.render(renderContext);
+            });
+          })
+          .catch(function (error) {
+            console.error('Error loading PDF:', error);
+          });
+      }
+
+      $('minus-left').addEventListener(
+        'click',
+        handlePositionChange('minus-left')
+      );
+      $('plus-left').addEventListener(
+        'click',
+        handlePositionChange('plus-left')
+      );
+      $('minus-top').addEventListener(
+        'click',
+        handlePositionChange('minus-top')
+      );
+      $('plus-top').addEventListener('click', handlePositionChange('plus-top'));
+
+      $('minus-width').addEventListener(
+        'click',
+        handleSizeChange('minus-width')
+      );
+      $('plus-width').addEventListener('click', handleSizeChange('plus-width'));
+
+      function handlePositionChange(direction) {
+        return (e) => {
+          const d = e.shiftKey ? 10 : 1;
+          const key = direction.endsWith('left') ? 'left' : 'top';
+          const sign = direction.startsWith('plus') ? 1 : -1;
+          const currentValue = ($('pdf-canvas').style[key] || '0px').replace(
+            'px',
+            ''
+          );
+          const newValue = parseInt(currentValue) + d * sign;
+          localStorage.setItem(key, newValue);
+
+          $(`${key}-value`).innerText = `${newValue}`;
+          $('pdf-canvas').style[key] = `${newValue}px`;
+        };
+      }
+
+      function handleSizeChange(direction) {
+        return (e) => {
+          const d = e.shiftKey ? 10 : 1;
+          const sign = direction.startsWith('plus') ? 1 : -1;
+          const currentValue = ($('pdf-canvas').style.width || '0px').replace(
+            'px',
+            ''
+          );
+          const newValue = parseInt(currentValue) + d * sign;
+          localStorage.setItem('width', newValue);
+          $('width-value').innerText = `${newValue}`;
+          $('pdf-canvas').style.width = `${newValue}px`;
+        };
+      }
+
+      const initialLeft = localStorage.getItem('left') || 10;
+      const initialTop = localStorage.getItem('top') || 10;
+      // 771 - found out by experiment
+      const initialWidth = localStorage.getItem('width') || 771;
+
+      $('left-value').innerText = `${initialLeft}`;
+      $('pdf-canvas').style.left = `${initialLeft}px`;
+      $('top-value').innerText = `${initialTop}`;
+      $('pdf-canvas').style.top = `${initialTop}px`;
+      $('width-value').innerText = `${initialWidth}`;
+      $('pdf-canvas').style.width = `${initialWidth}px`;
+
+      const initialPage = localStorage.getItem('page') || 1;
+      $('current-page').addEventListener('change', (e) => {
+        const page = parseInt(e.target.value);
+        rerenderWithPage(page);
+      });
+      $('prev-page').addEventListener('click', () => {
+        rerenderWithPage(parseInt($('current-page').value) - 1);
+      });
+      $('next-page').addEventListener('click', () => {
+        rerenderWithPage(parseInt($('current-page').value) + 1);
+      });
+
+      function rerenderWithPage(page) {
+        if (0 < page && page <= totalPages) {
+          localStorage.setItem('page', page);
+          $('current-page').value = page;
+          render(fileUrl, { page });
+        }
+      }
+
+      $('panel-top').addEventListener('click', () => {
+        $('container');
+      });
+      $('panel-bottom').addEventListener('click', () => {});
+    </script>
+  </body>
+</html>
